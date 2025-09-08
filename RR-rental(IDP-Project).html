@@ -1,0 +1,1642 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>BikeRentals India - Complete System</title>
+    <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@6.4.0/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        body {
+            font-family: 'Poppins', sans-serif;
+            overflow-x: hidden;
+        }
+        .hero-bg { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); }
+        .bike-card { transition: all 0.3s ease; }
+        .bike-card:hover { transform: translateY(-5px); box-shadow: 0 20px 40px rgba(0,0,0,0.1); }
+        .auth-modal { display: none; }
+        .auth-modal.active { display: flex; }
+        .fade-in { animation: fadeIn 0.5s ease-in; }
+        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+        .price-highlight { color: #e44d26; font-weight: 600; }
+       
+        .bike-marker {
+            width: 30px;
+            height: 30px;
+            background: #10B981;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-size: 14px;
+            cursor: pointer;
+            border: 2px solid white;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+            animation: pulse 2s infinite;
+        }
+       
+        .bike-marker.rented { background: #EF4444; }
+        .bike-marker.maintenance { background: #F59E0B; }
+       
+        @keyframes pulse {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.1); }
+            100% { transform: scale(1); }
+        }
+       
+        .map-container {
+            background: linear-gradient(45deg, #E5F3FF, #F0F9FF);
+            position: relative;
+            overflow: hidden;
+        }
+       
+        .notification {
+            animation: slideIn 0.5s ease-out;
+        }
+       
+        @keyframes slideIn {
+            from { transform: translateX(100%); opacity: 0; }
+            to { transform: translateX(0); opacity: 1; }
+        }
+       
+        .chart-container { height: 300px; }
+        .section-content { min-height: calc(100vh - 80px); }
+       
+        .tab-button.active {
+            background-color: #3B82F6;
+            color: white;
+        }
+       
+        .admin-sidebar {
+            min-height: calc(100vh - 80px);
+        }
+    </style>
+</head>
+<body class="bg-gray-50">
+    <!-- Navigation -->
+    <nav class="bg-white shadow-lg sticky top-0 z-50">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex justify-between h-16">
+                <div class="flex items-center">
+                    <div class="flex-shrink-0 flex items-center">
+                        <i class="fas fa-motorcycle text-2xl text-blue-600 mr-2"></i>
+                        <span class="text-xl font-bold text-gray-800">BikeRentals India</span>
+                    </div>
+                </div>
+               
+                <!-- User Navigation -->
+                <div id="user-nav" class="hidden md:flex items-center space-x-8">
+                    <button onclick="showSection('home')" class="nav-btn text-gray-700 hover:text-blue-600 transition-colors">Home</button>
+                    <button onclick="showSection('bikes')" class="nav-btn text-gray-700 hover:text-blue-600 transition-colors">Bikes</button>
+                    <button onclick="showSection('bookings')" class="nav-btn text-gray-700 hover:text-blue-600 transition-colors">My Bookings</button>
+                    <button onclick="showSection('profile')" class="nav-btn text-gray-700 hover:text-blue-600 transition-colors">Profile</button>
+                    <button onclick="showAuthModal('login')" id="loginBtn" class="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors">
+                        <i class="fas fa-user mr-2"></i>Login
+                    </button>
+                </div>
+               
+                <!-- Admin Navigation -->
+                <div id="admin-nav" class="hidden md:flex items-center space-x-8">
+                    <button onclick="showSection('admin-dashboard')" class="nav-btn text-gray-700 hover:text-blue-600 transition-colors">Dashboard</button>
+                    <button onclick="showSection('admin-fleet')" class="nav-btn text-gray-700 hover:text-blue-600 transition-colors">Fleet</button>
+                    <button onclick="showSection('admin-bookings')" class="nav-btn text-gray-700 hover:text-blue-600 transition-colors">Bookings</button>
+                    <button onclick="showSection('admin-users')" class="nav-btn text-gray-700 hover:text-blue-600 transition-colors">Users</button>
+                    <div class="flex items-center space-x-3">
+                        <span class="text-sm text-gray-600">Admin Panel</span>
+                        <button onclick="logout()" class="bg-red-600 text-white px-4 py-2 rounded-lg hover:bg-red-700 transition-colors">
+                            <i class="fas fa-sign-out-alt mr-2"></i>Logout
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Authentication Modal -->
+    <div id="authModal" class="auth-modal fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
+        <div class="bg-white rounded-xl p-8 w-full max-w-md">
+            <div class="flex justify-between items-center mb-6">
+                <h2 id="authTitle" class="text-2xl font-bold text-gray-800">Login</h2>
+                <button onclick="closeAuthModal()" class="text-gray-500 hover:text-gray-700">
+                    <i class="fas fa-times text-xl"></i>
+                </button>
+            </div>
+           
+            <!-- Login Form -->
+            <div id="loginForm">
+                <div class="space-y-4">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">Email or Phone</label>
+                        <input type="text" id="loginEmail" class="w-full border border-gray-300 rounded-lg px-4 py-3 focus:outline-none focus:border-blue-500" placeholder="Enter email or phone">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">Password</label>
+                        <input type="password" id="loginPassword" class="w-full border border-gray-300 rounded-lg px-4 py-3 focus:outline-none focus:border-blue-500" placeholder="Enter password">
+                    </div>
+                    <div class="flex items-center justify-between">
+                        <label class="flex items-center">
+                            <input type="checkbox" class="mr-2">
+                            <span class="text-sm text-gray-600">Remember me</span>
+                        </label>
+                        <a href="#" class="text-sm text-blue-600 hover:text-blue-800">Forgot password?</a>
+                    </div>
+                    <button onclick="login()" class="w-full bg-blue-600 text-white py-3 rounded-lg hover:bg-blue-700 transition-colors font-semibold">
+                        <i class="fas fa-sign-in-alt mr-2"></i>Login
+                    </button>
+                    <div class="text-center">
+                        <span class="text-sm text-gray-600">Don't have an account? </span>
+                        <button onclick="switchToSignup()" class="text-sm text-blue-600 hover:text-blue-800 font-semibold">Sign up</button>
+                    </div>
+                </div>
+            </div>
+           
+            <!-- Signup Form -->
+            <div id="signupForm" class="hidden">
+                <div class="space-y-4">
+                    <div class="grid grid-cols-2 gap-4">
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">First Name</label>
+                            <input type="text" id="signupFirstName" class="w-full border border-gray-300 rounded-lg px-4 py-3 focus:outline-none focus:border-blue-500" placeholder="First name">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">Last Name</label>
+                            <input type="text" id="signupLastName" class="w-full border border-gray-300 rounded-lg px-4 py-3 focus:outline-none focus:border-blue-500" placeholder="Last name">
+                        </div>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">Email</label>
+                        <input type="email" id="signupEmail" class="w-full border border-gray-300 rounded-lg px-4 py-3 focus:outline-none focus:border-blue-500" placeholder="Enter email">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">Phone Number</label>
+                        <input type="tel" id="signupPhone" class="w-full border border-gray-300 rounded-lg px-4 py-3 focus:outline-none focus:border-blue-500" placeholder="Enter phone number">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">Password</label>
+                        <input type="password" id="signupPassword" class="w-full border border-gray-300 rounded-lg px-4 py-3 focus:outline-none focus:border-blue-500" placeholder="Create password">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">Confirm Password</label>
+                        <input type="password" id="signupConfirmPassword" class="w-full border border-gray-300 rounded-lg px-4 py-3 focus:outline-none focus:border-blue-500" placeholder="Confirm password">
+                    </div>
+                    <div class="flex items-center">
+                        <input type="checkbox" id="agreeTerms" class="mr-2">
+                        <label class="text-sm text-gray-600">I agree to the <a href="#" class="text-blue-600 hover:text-blue-800">Terms & Conditions</a></label>
+                    </div>
+                    <button onclick="signup()" class="w-full bg-green-600 text-white py-3 rounded-lg hover:bg-green-700 transition-colors font-semibold">
+                        <i class="fas fa-user-plus mr-2"></i>Create Account
+                    </button>
+                    <div class="text-center">
+                        <span class="text-sm text-gray-600">Already have an account? </span>
+                        <button onclick="switchToLogin()" class="text-sm text-blue-600 hover:text-blue-800 font-semibold">Login</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- User Sections -->
+   
+    <!-- Home Section -->
+    <section id="home-section" class="section-content">
+        <div class="hero-bg text-white py-20">
+            <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
+                <h1 class="text-4xl md:text-6xl font-bold mb-6 fade-in">Ride India's Best Bikes</h1>
+                <p class="text-xl md:text-2xl mb-8 max-w-3xl mx-auto opacity-90">
+                    Premium bike rentals across major Indian cities. From Royal Enfield to sports bikes, find your perfect ride.
+                </p>
+                <div class="flex flex-col sm:flex-row gap-4 justify-center">
+                    <button onclick="showSection('bikes')" class="bg-orange-500 text-white px-8 py-3 rounded-lg font-semibold text-lg hover:bg-orange-600 transition-colors">
+                        <i class="fas fa-motorcycle mr-2"></i>Explore Bikes
+                    </button>
+                    <button onclick="showBookingModal()" class="bg-white text-blue-600 px-8 py-3 rounded-lg font-semibold text-lg hover:bg-gray-100 transition-colors">
+                        <i class="fas fa-calendar-alt mr-2"></i>Book Now
+                    </button>
+                </div>
+               
+                <div class="grid grid-cols-2 md:grid-cols-4 gap-8 mt-16 max-w-4xl mx-auto">
+                    <div class="text-center">
+                        <div class="text-3xl md:text-4xl font-bold">500+</div>
+                        <div class="text-sm opacity-80">Premium Bikes</div>
+                    </div>
+                    <div class="text-center">
+                        <div class="text-3xl md:text-4xl font-bold">8</div>
+                        <div class="text-sm opacity-80">Major Cities</div>
+                    </div>
+                    <div class="text-center">
+                        <div class="text-3xl md:text-4xl font-bold">10K+</div>
+                        <div class="text-sm opacity-80">Happy Customers</div>
+                    </div>
+                    <div class="text-center">
+                        <div class="text-3xl md:text-4xl font-bold">24/7</div>
+                        <div class="text-sm opacity-80">Support</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+       
+        <!-- Locations Preview -->
+        <div class="py-16 bg-gray-50">
+            <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+                <div class="text-center mb-12">
+                    <h2 class="text-3xl md:text-4xl font-bold text-gray-800 mb-4">Service Locations</h2>
+                    <p class="text-xl text-gray-600 max-w-2xl mx-auto">We operate in major Indian cities</p>
+                </div>
+                <div class="grid grid-cols-2 md:grid-cols-4 gap-6">
+                    <div class="bg-white rounded-lg shadow-md p-6 text-center">
+                        <i class="fas fa-city text-3xl text-blue-600 mb-4"></i>
+                        <h3 class="text-xl font-bold text-gray-800 mb-2">Delhi NCR</h3>
+                        <p class="text-gray-600 text-sm">15+ pickup points</p>
+                    </div>
+                    <div class="bg-white rounded-lg shadow-md p-6 text-center">
+                        <i class="fas fa-city text-3xl text-blue-600 mb-4"></i>
+                        <h3 class="text-xl font-bold text-gray-800 mb-2">Mumbai</h3>
+                        <p class="text-gray-600 text-sm">12+ pickup points</p>
+                    </div>
+                    <div class="bg-white rounded-lg shadow-md p-6 text-center">
+                        <i class="fas fa-city text-3xl text-blue-600 mb-4"></i>
+                        <h3 class="text-xl font-bold text-gray-800 mb-2">Bangalore</h3>
+                        <p class="text-gray-600 text-sm">10+ pickup points</p>
+                    </div>
+                    <div class="bg-white rounded-lg shadow-md p-6 text-center">
+                        <i class="fas fa-city text-3xl text-blue-600 mb-4"></i>
+                        <h3 class="text-xl font-bold text-gray-800 mb-2">Chennai</h3>
+                        <p class="text-gray-600 text-sm">8+ pickup points</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Bikes Section -->
+    <section id="bikes-section" class="section-content hidden">
+        <div class="py-16 bg-white">
+            <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+                <div class="text-center mb-12">
+                    <h2 class="text-3xl md:text-4xl font-bold text-gray-800 mb-4">Our Premium Fleet</h2>
+                    <p class="text-xl text-gray-600 max-w-2xl mx-auto">Choose from our extensive collection</p>
+                </div>
+
+                <div class="flex flex-wrap justify-center gap-4 mb-12">
+                    <button onclick="filterBikes('all')" class="filter-btn bg-blue-600 text-white px-6 py-2 rounded-full hover:bg-blue-700 transition-colors">All Bikes</button>
+                    <button onclick="filterBikes('cruiser')" class="filter-btn bg-gray-200 text-gray-700 px-6 py-2 rounded-full hover:bg-gray-300 transition-colors">Cruiser</button>
+                    <button onclick="filterBikes('sports')" class="filter-btn bg-gray-200 text-gray-700 px-6 py-2 rounded-full hover:bg-gray-300 transition-colors">Sports</button>
+                    <button onclick="filterBikes('commuter')" class="filter-btn bg-gray-200 text-gray-700 px-6 py-2 rounded-full hover:bg-gray-300 transition-colors">Commuter</button>
+                </div>
+
+                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8" id="bikesGrid">
+                    <!-- Bikes will be populated by JavaScript -->
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- My Bookings Section -->
+    <section id="bookings-section" class="section-content hidden">
+        <div class="py-16 bg-white">
+            <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+                <h2 class="text-3xl font-bold text-gray-800 mb-8">My Bookings</h2>
+               
+                <!-- Active Bookings -->
+                <div class="mb-8">
+                    <h3 class="text-xl font-bold text-gray-800 mb-4">Active Rentals</h3>
+                    <div id="activeBookings" class="space-y-4">
+                        <!-- Active bookings will be populated here -->
+                    </div>
+                </div>
+               
+                <!-- Booking History -->
+                <div>
+                    <h3 class="text-xl font-bold text-gray-800 mb-4">Booking History</h3>
+                    <div id="bookingHistory" class="space-y-4">
+                        <!-- Booking history will be populated here -->
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Profile Section -->
+    <section id="profile-section" class="section-content hidden">
+        <div class="py-16 bg-white">
+            <div class="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
+                <h2 class="text-3xl font-bold text-gray-800 mb-8">My Profile</h2>
+               
+                <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+                    <!-- Profile Info -->
+                    <div class="lg:col-span-2">
+                        <div class="bg-white rounded-xl shadow-lg p-6">
+                            <h3 class="text-xl font-bold text-gray-800 mb-6">Personal Information</h3>
+                            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                <div>
+                                    <label class="block text-sm font-medium text-gray-700 mb-2">First Name</label>
+                                    <input type="text" id="profileFirstName" class="w-full border border-gray-300 rounded-lg px-4 py-3" value="John">
+                                </div>
+                                <div>
+                                    <label class="block text-sm font-medium text-gray-700 mb-2">Last Name</label>
+                                    <input type="text" id="profileLastName" class="w-full border border-gray-300 rounded-lg px-4 py-3" value="Doe">
+                                </div>
+                                <div>
+                                    <label class="block text-sm font-medium text-gray-700 mb-2">Email</label>
+                                    <input type="email" id="profileEmail" class="w-full border border-gray-300 rounded-lg px-4 py-3" value="john.doe@email.com">
+                                </div>
+                                <div>
+                                    <label class="block text-sm font-medium text-gray-700 mb-2">Phone</label>
+                                    <input type="tel" id="profilePhone" class="w-full border border-gray-300 rounded-lg px-4 py-3" value="+91 9876543210">
+                                </div>
+                            </div>
+                            <div class="mt-6">
+                                <button onclick="updateProfile()" class="bg-blue-600 text-white px-6 py-3 rounded-lg hover:bg-blue-700 transition-colors">
+                                    <i class="fas fa-save mr-2"></i>Update Profile
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                   
+                    <!-- Stats -->
+                    <div>
+                        <div class="bg-white rounded-xl shadow-lg p-6">
+                            <h3 class="text-xl font-bold text-gray-800 mb-6">Riding Stats</h3>
+                            <div class="space-y-4">
+                                <div class="text-center">
+                                    <div class="text-3xl font-bold text-blue-600">47</div>
+                                    <div class="text-sm text-gray-600">Total Rides</div>
+                                </div>
+                                <div class="text-center">
+                                    <div class="text-3xl font-bold text-green-600">342 km</div>
+                                    <div class="text-sm text-gray-600">Distance Traveled</div>
+                                </div>
+                                <div class="text-center">
+                                    <div class="text-3xl font-bold text-purple-600">₹4,250</div>
+                                    <div class="text-sm text-gray-600">Total Spent</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Admin Sections -->
+   
+    <!-- Admin Dashboard -->
+    <section id="admin-dashboard-section" class="section-content hidden">
+        <div class="py-8 bg-white">
+            <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+                <div class="flex justify-between items-center mb-8">
+                    <h2 class="text-3xl font-bold text-gray-800">Admin Dashboard</h2>
+                    <div class="text-sm text-gray-600">
+                        <i class="fas fa-clock mr-2"></i>
+                        <span id="currentTime"></span>
+                    </div>
+                </div>
+               
+                <!-- Key Metrics -->
+                <div class="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
+                    <div class="bg-white rounded-xl shadow-lg p-6">
+                        <div class="flex items-center justify-between">
+                            <div>
+                                <p class="text-sm text-gray-600">Total Revenue</p>
+                                <p class="text-2xl font-bold text-green-600">₹2,45,680</p>
+                            </div>
+                            <div class="w-12 h-12 bg-green-100 rounded-full flex items-center justify-center">
+                                <i class="fas fa-rupee-sign text-green-600 text-xl"></i>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="bg-white rounded-xl shadow-lg p-6">
+                        <div class="flex items-center justify-between">
+                            <div>
+                                <p class="text-sm text-gray-600">Active Rentals</p>
+                                <p class="text-2xl font-bold text-blue-600">23</p>
+                            </div>
+                            <div class="w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center">
+                                <i class="fas fa-motorcycle text-blue-600 text-xl"></i>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="bg-white rounded-xl shadow-lg p-6">
+                        <div class="flex items-center justify-between">
+                            <div>
+                                <p class="text-sm text-gray-600">Total Users</p>
+                                <p class="text-2xl font-bold text-purple-600">1,247</p>
+                            </div>
+                            <div class="w-12 h-12 bg-purple-100 rounded-full flex items-center justify-center">
+                                <i class="fas fa-users text-purple-600 text-xl"></i>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="bg-white rounded-xl shadow-lg p-6">
+                        <div class="flex items-center justify-between">
+                            <div>
+                                <p class="text-sm text-gray-600">Fleet Size</p>
+                                <p class="text-2xl font-bold text-orange-600">145</p>
+                            </div>
+                            <div class="w-12 h-12 bg-orange-100 rounded-full flex items-center justify-center">
+                                <i class="fas fa-bicycle text-orange-600 text-xl"></i>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+               
+                <!-- Charts -->
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
+                    <div class="bg-white rounded-xl shadow-lg p-6">
+                        <h3 class="text-lg font-bold mb-4">Revenue Trend</h3>
+                        <div class="chart-container">
+                            <canvas id="revenueChart"></canvas>
+                        </div>
+                    </div>
+                    <div class="bg-white rounded-xl shadow-lg p-6">
+                        <h3 class="text-lg font-bold mb-4">Fleet Utilization</h3>
+                        <div class="chart-container">
+                            <canvas id="utilizationChart"></canvas>
+                        </div>
+                    </div>
+                </div>
+               
+                <!-- Recent Activity -->
+                <div class="bg-white rounded-xl shadow-lg p-6">
+                    <h3 class="text-lg font-bold mb-4">Recent Activity</h3>
+                    <div class="space-y-4" id="recentActivity">
+                        <!-- Recent activity will be populated here -->
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Admin Fleet Management -->
+    <section id="admin-fleet-section" class="section-content hidden">
+        <div class="py-8 bg-white">
+            <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+                <div class="flex justify-between items-center mb-8">
+                    <h2 class="text-3xl font-bold text-gray-800">Fleet Management</h2>
+                    <button onclick="showAddBikeModal()" class="bg-green-600 text-white px-6 py-3 rounded-lg hover:bg-green-700 transition-colors">
+                        <i class="fas fa-plus mr-2"></i>Add New Bike
+                    </button>
+                </div>
+               
+                <!-- Fleet Status -->
+                <div class="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
+                    <div class="bg-white rounded-xl shadow-lg p-6">
+                        <div class="flex items-center justify-between">
+                            <div>
+                                <p class="text-sm text-gray-600">Available</p>
+                                <p class="text-2xl font-bold text-green-600" id="availableBikes">42</p>
+                            </div>
+                            <div class="w-12 h-12 bg-green-100 rounded-full flex items-center justify-center">
+                                <i class="fas fa-check-circle text-green-600 text-xl"></i>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="bg-white rounded-xl shadow-lg p-6">
+                        <div class="flex items-center justify-between">
+                            <div>
+                                <p class="text-sm text-gray-600">In Use</p>
+                                <p class="text-2xl font-bold text-blue-600" id="inUseBikes">23</p>
+                            </div>
+                            <div class="w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center">
+                                <i class="fas fa-user text-blue-600 text-xl"></i>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="bg-white rounded-xl shadow-lg p-6">
+                        <div class="flex items-center justify-between">
+                            <div>
+                                <p class="text-sm text-gray-600">Maintenance</p>
+                                <p class="text-2xl font-bold text-yellow-600" id="maintenanceBikes">8</p>
+                            </div>
+                            <div class="w-12 h-12 bg-yellow-100 rounded-full flex items-center justify-center">
+                                <i class="fas fa-wrench text-yellow-600 text-xl"></i>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="bg-white rounded-xl shadow-lg p-6">
+                        <div class="flex items-center justify-between">
+                            <div>
+                                <p class="text-sm text-gray-600">Out of Service</p>
+                                <p class="text-2xl font-bold text-red-600" id="outOfServiceBikes">3</p>
+                            </div>
+                            <div class="w-12 h-12 bg-red-100 rounded-full flex items-center justify-center">
+                                <i class="fas fa-times-circle text-red-600 text-xl"></i>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+               
+                <!-- Fleet Table -->
+                <div class="bg-white rounded-xl shadow-lg">
+                    <div class="p-6 border-b">
+                        <div class="flex justify-between items-center">
+                            <h3 class="text-lg font-bold">Fleet Overview</h3>
+                            <div class="flex items-center space-x-3">
+                                <input type="text" placeholder="Search bikes..." class="border border-gray-300 rounded-lg px-4 py-2 focus:outline-none focus:border-blue-500">
+                                <select class="border border-gray-300 rounded-lg px-4 py-2">
+                                    <option>All Status</option>
+                                    <option>Available</option>
+                                    <option>In Use</option>
+                                    <option>Maintenance</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="overflow-x-auto">
+                        <table class="w-full">
+                            <thead class="bg-gray-50">
+                                <tr>
+                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Bike ID</th>
+                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Model</th>
+                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Status</th>
+                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Location</th>
+                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Battery</th>
+                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Last Update</th>
+                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody class="divide-y divide-gray-200" id="fleetTableBody">
+                                <!-- Fleet data will be populated here -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Admin Bookings -->
+    <section id="admin-bookings-section" class="section-content hidden">
+        <div class="py-8 bg-white">
+            <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+                <h2 class="text-3xl font-bold text-gray-800 mb-8">Booking Management</h2>
+               
+                <!-- Booking Stats -->
+                <div class="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
+                    <div class="bg-white rounded-xl shadow-lg p-6">
+                        <div class="text-center">
+                            <p class="text-2xl font-bold text-blue-600">156</p>
+                            <p class="text-sm text-gray-600">Total Bookings Today</p>
+                        </div>
+                    </div>
+                    <div class="bg-white rounded-xl shadow-lg p-6">
+                        <div class="text-center">
+                            <p class="text-2xl font-bold text-green-600">23</p>
+                            <p class="text-sm text-gray-600">Active Rentals</p>
+                        </div>
+                    </div>
+                    <div class="bg-white rounded-xl shadow-lg p-6">
+                        <div class="text-center">
+                            <p class="text-2xl font-bold text-yellow-600">8</p>
+                            <p class="text-sm text-gray-600">Pending Returns</p>
+                        </div>
+                    </div>
+                    <div class="bg-white rounded-xl shadow-lg p-6">
+                        <div class="text-center">
+                            <p class="text-2xl font-bold text-purple-600">₹18,450</p>
+                            <p class="text-sm text-gray-600">Today's Revenue</p>
+                        </div>
+                    </div>
+                </div>
+               
+                <!-- Bookings Table -->
+                <div class="bg-white rounded-xl shadow-lg">
+                    <div class="p-6 border-b">
+                        <h3 class="text-lg font-bold">Recent Bookings</h3>
+                    </div>
+                    <div class="overflow-x-auto">
+                        <table class="w-full">
+                            <thead class="bg-gray-50">
+                                <tr>
+                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Booking ID</th>
+                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Customer</th>
+                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Bike</th>
+                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Start Time</th>
+                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Duration</th>
+                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Status</th>
+                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Amount</th>
+                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody class="divide-y divide-gray-200" id="bookingsTableBody">
+                                <!-- Bookings data will be populated here -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Admin Users -->
+    <section id="admin-users-section" class="section-content hidden">
+        <div class="py-8 bg-white">
+            <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+                <h2 class="text-3xl font-bold text-gray-800 mb-8">User Management</h2>
+               
+                <!-- User Stats -->
+                <div class="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
+                    <div class="bg-white rounded-xl shadow-lg p-6">
+                        <div class="text-center">
+                            <p class="text-2xl font-bold text-blue-600">1,247</p>
+                            <p class="text-sm text-gray-600">Total Users</p>
+                        </div>
+                    </div>
+                    <div class="bg-white rounded-xl shadow-lg p-6">
+                        <div class="text-center">
+                            <p class="text-2xl font-bold text-green-600">89</p>
+                            <p class="text-sm text-gray-600">Active Today</p>
+                        </div>
+                    </div>
+                    <div class="bg-white rounded-xl shadow-lg p-6">
+                        <div class="text-center">
+                            <p class="text-2xl font-bold text-purple-600">156</p>
+                            <p class="text-sm text-gray-600">New This Week</p>
+                        </div>
+                    </div>
+                    <div class="bg-white rounded-xl shadow-lg p-6">
+                        <div class="text-center">
+                            <p class="text-2xl font-bold text-yellow-600">92%</p>
+                            <p class="text-sm text-gray-600">Satisfaction Rate</p>
+                        </div>
+                    </div>
+                </div>
+               
+                <!-- Users Table -->
+                <div class="bg-white rounded-xl shadow-lg">
+                    <div class="p-6 border-b">
+                        <div class="flex justify-between items-center">
+                            <h3 class="text-lg font-bold">Users Overview</h3>
+                            <input type="text" placeholder="Search users..." class="border border-gray-300 rounded-lg px-4 py-2 focus:outline-none focus:border-blue-500">
+                        </div>
+                    </div>
+                    <div class="overflow-x-auto">
+                        <table class="w-full">
+                            <thead class="bg-gray-50">
+                                <tr>
+                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">User ID</th>
+                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Name</th>
+                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Email</th>
+                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Phone</th>
+                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Total Rides</th>
+                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Status</th>
+                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody class="divide-y divide-gray-200" id="usersTableBody">
+                                <!-- Users data will be populated here -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Booking Modal -->
+    <div id="bookingModal" class="auth-modal fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
+        <div class="bg-white rounded-xl p-6 w-full max-w-md">
+            <div class="flex justify-between items-center mb-4">
+                <h3 class="text-lg font-bold">Book a Bike</h3>
+                <button onclick="closeBookingModal()" class="text-gray-500 hover:text-gray-700">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+           
+            <div class="space-y-4">
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-2">Select Bike</label>
+                    <select id="bikeSelect" class="w-full border border-gray-300 rounded-lg px-3 py-2">
+                        <option value="">Choose a bike...</option>
+                    </select>
+                </div>
+               
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-2">Pickup Location</label>
+                    <select id="locationSelect" class="w-full border border-gray-300 rounded-lg px-3 py-2">
+                        <option>Connaught Place, Delhi</option>
+                        <option>Bandra, Mumbai</option>
+                        <option>MG Road, Bangalore</option>
+                        <option>T Nagar, Chennai</option>
+                    </select>
+                </div>
+               
+                <div class="grid grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">Start Date</label>
+                        <input type="date" id="startDate" class="w-full border border-gray-300 rounded-lg px-3 py-2">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">Start Time</label>
+                        <input type="time" id="startTime" class="w-full border border-gray-300 rounded-lg px-3 py-2">
+                    </div>
+                </div>
+               
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-2">Duration</label>
+                    <select id="durationSelect" class="w-full border border-gray-300 rounded-lg px-3 py-2">
+                        <option value="2">2 Hours</option>
+                        <option value="4">4 Hours</option>
+                        <option value="8">8 Hours</option>
+                        <option value="24">Full Day</option>
+                        <option value="168">Weekly</option>
+                    </select>
+                </div>
+               
+                <div class="bg-gray-50 rounded-lg p-3">
+                    <div class="flex justify-between text-sm">
+                        <span>Rental Cost:</span>
+                        <span id="rentalCost">₹0</span>
+                    </div>
+                    <div class="flex justify-between text-sm">
+                        <span>Security Deposit:</span>
+                        <span>₹500</span>
+                    </div>
+                    <div class="flex justify-between font-bold">
+                        <span>Total Amount:</span>
+                        <span id="totalAmount">₹500</span>
+                    </div>
+                </div>
+               
+                <button onclick="confirmBooking()" class="w-full bg-green-600 text-white py-3 rounded-lg hover:bg-green-700 transition-colors font-semibold">
+                    <i class="fas fa-calendar-check mr-2"></i>Confirm Booking
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Notification Container -->
+    <div id="notificationContainer" class="fixed top-20 right-4 space-y-2 z-50"></div>
+
+    <script>
+        // Application State
+        const appState = {
+            currentUser: null,
+            isAdmin: false,
+            bikes: [],
+            bookings: [],
+            users: [],
+            currentSection: 'home'
+        };
+
+        // Mock Data
+        const mockBikes = [
+            {
+                id: 'RE001',
+                name: 'Royal Enfield Classic 350',
+                category: 'cruiser',
+                price: 800,
+                rating: 4.8,
+                engine: '350cc',
+                mileage: '35 kmpl',
+                status: 'available',
+                location: 'Delhi CP',
+                image: 'https://www.royalenfield.com/content/dam/royal-enfield/motorcycles/new-classic-350/studio-shots/new/gun-grey.png'
+            },
+            {
+                id: 'HC001',
+                name: 'Honda CB Shine',
+                category: 'commuter',
+                price: 400,
+                rating: 4.5,
+                engine: '125cc',
+                mileage: '65 kmpl',
+                status: 'available',
+                location: 'Mumbai Bandra',
+                image: 'https://cdn.bikedekho.com/processedimages/honda/shine-bs6/source/shine-bs6649193c1c79aa.jpg'
+            },
+            {
+                id: 'BP001',
+                name: 'Bajaj Pulsar 150',
+                category: 'sports',
+                price: 600,
+                rating: 4.7,
+                engine: '150cc',
+                mileage: '45 kmpl',
+                status: 'available',
+                location: 'Bangalore MG Road',
+                image: 'https://cdn.bajajauto.com/-/media/assets/bajajauto/bikes/pulsar-150-2024/360-degree/single-disc/red/00.png'
+            },
+            {
+                id: 'HS001',
+                name: 'Hero Splendor Plus',
+                category: 'commuter',
+                price: 350,
+                rating: 4.3,
+                engine: '97cc',
+                mileage: '70 kmpl',
+                status: 'available',
+                location: 'Chennai T Nagar',
+                image: 'https://www.heromotocorp.com/content/dam/hero-commerce/in/en/products/practical/content-fragments/splendor-plus/assets/splendor-plus-desktop.jpg'
+            }
+        ];
+
+        const mockUsers = [
+            { id: 'U001', name: 'John Doe', email: 'admin@bikerentals.com', password: 'admin123', role: 'admin' },
+            { id: 'U002', name: 'Jane Smith', email: 'john@example.com', password: 'password', role: 'user' },
+            { id: 'U003', name: 'Mike Johnson', email: 'jane@example.com', password: 'password', role: 'user' }
+        ];
+
+        // Initialize App
+        document.addEventListener('DOMContentLoaded', function() {
+            initializeApp();
+            setupEventListeners();
+            renderBikes();
+            updateTime();
+            setInterval(updateTime, 1000);
+        });
+
+        function initializeApp() {
+            appState.bikes = [...mockBikes];
+            appState.users = [...mockUsers];
+           
+            // Set today's date as default
+            const today = new Date().toISOString().split('T')[0];
+            const startDateInput = document.getElementById('startDate');
+            if (startDateInput) {
+                startDateInput.value = today;
+            }
+           
+            showSection('home');
+        }
+
+        function setupEventListeners() {
+            // Duration and bike selection change handlers
+            const durationSelect = document.getElementById('durationSelect');
+            const bikeSelect = document.getElementById('bikeSelect');
+           
+            if (durationSelect) {
+                durationSelect.addEventListener('change', updateBookingCost);
+            }
+            if (bikeSelect) {
+                bikeSelect.addEventListener('change', updateBookingCost);
+            }
+        }
+
+        // Authentication Functions
+        function showAuthModal(type) {
+            const modal = document.getElementById('authModal');
+            const title = document.getElementById('authTitle');
+            const loginForm = document.getElementById('loginForm');
+            const signupForm = document.getElementById('signupForm');
+           
+            if (type === 'login') {
+                title.textContent = 'Login';
+                loginForm.classList.remove('hidden');
+                signupForm.classList.add('hidden');
+            } else {
+                title.textContent = 'Sign Up';
+                loginForm.classList.add('hidden');
+                signupForm.classList.remove('hidden');
+            }
+           
+            modal.classList.add('active');
+        }
+
+        function closeAuthModal() {
+            document.getElementById('authModal').classList.remove('active');
+        }
+
+        function switchToLogin() {
+            showAuthModal('login');
+        }
+
+        function switchToSignup() {
+            showAuthModal('signup');
+        }
+
+        function login() {
+            const email = document.getElementById('loginEmail').value;
+            const password = document.getElementById('loginPassword').value;
+           
+            if (!email || !password) {
+                showNotification('Please fill in all fields', 'error');
+                return;
+            }
+           
+            const user = appState.users.find(u =>
+                (u.email === email || u.phone === email) && u.password === password
+            );
+           
+            if (user) {
+                appState.currentUser = user;
+                appState.isAdmin = user.role === 'admin';
+               
+                closeAuthModal();
+                showNotification(`Welcome ${user.name}!`, 'success');
+               
+                updateNavigation();
+               
+                if (appState.isAdmin) {
+                    showSection('admin-dashboard');
+                    loadAdminData();
+                } else {
+                    showSection('home');
+                }
+            } else {
+                showNotification('Invalid credentials', 'error');
+            }
+        }
+
+        function signup() {
+            const firstName = document.getElementById('signupFirstName').value;
+            const lastName = document.getElementById('signupLastName').value;
+            const email = document.getElementById('signupEmail').value;
+            const phone = document.getElementById('signupPhone').value;
+            const password = document.getElementById('signupPassword').value;
+            const confirmPassword = document.getElementById('signupConfirmPassword').value;
+            const agreeTerms = document.getElementById('agreeTerms').checked;
+           
+            if (!firstName || !lastName || !email || !phone || !password || !confirmPassword) {
+                showNotification('Please fill in all fields', 'error');
+                return;
+            }
+           
+            if (password !== confirmPassword) {
+                showNotification('Passwords do not match', 'error');
+                return;
+            }
+           
+            if (!agreeTerms) {
+                showNotification('Please agree to terms and conditions', 'error');
+                return;
+            }
+           
+            // Check if user already exists
+            if (appState.users.some(u => u.email === email)) {
+                showNotification('User with this email already exists', 'error');
+                return;
+            }
+           
+            // Create new user
+            const newUser = {
+                id: 'U' + (appState.users.length + 1).toString().padStart(3, '0'),
+                name: firstName + ' ' + lastName,
+                email: email,
+                phone: phone,
+                password: password,
+                role: 'user'
+            };
+           
+            appState.users.push(newUser);
+            appState.currentUser = newUser;
+           
+            closeAuthModal();
+            showNotification('Account created successfully!', 'success');
+            updateNavigation();
+            showSection('home');
+        }
+
+        function logout() {
+            appState.currentUser = null;
+            appState.isAdmin = false;
+            updateNavigation();
+            showSection('home');
+            showNotification('Logged out successfully', 'success');
+        }
+
+        function updateNavigation() {
+            const userNav = document.getElementById('user-nav');
+            const adminNav = document.getElementById('admin-nav');
+            const loginBtn = document.getElementById('loginBtn');
+           
+            if (appState.currentUser) {
+                if (appState.isAdmin) {
+                    userNav.classList.add('hidden');
+                    adminNav.classList.remove('hidden');
+                } else {
+                    userNav.classList.remove('hidden');
+                    adminNav.classList.add('hidden');
+                    loginBtn.innerHTML = `<i class="fas fa-user mr-2"></i>${appState.currentUser.name}`;
+                    loginBtn.onclick = () => showSection('profile');
+                }
+            } else {
+                userNav.classList.remove('hidden');
+                adminNav.classList.add('hidden');
+                loginBtn.innerHTML = '<i class="fas fa-user mr-2"></i>Login';
+                loginBtn.onclick = () => showAuthModal('login');
+            }
+        }
+
+        // Section Management
+        function showSection(sectionName) {
+            // Hide all sections
+            document.querySelectorAll('.section-content').forEach(section => {
+                section.classList.add('hidden');
+            });
+           
+            // Show selected section
+            const targetSection = document.getElementById(sectionName + '-section');
+            if (targetSection) {
+                targetSection.classList.remove('hidden');
+            }
+           
+            appState.currentSection = sectionName;
+           
+            // Update navigation highlighting
+            document.querySelectorAll('.nav-btn').forEach(btn => {
+                btn.classList.remove('text-blue-600', 'font-semibold');
+                btn.classList.add('text-gray-700');
+            });
+           
+            // Load section-specific data
+            if (sectionName === 'bookings') {
+                loadUserBookings();
+            } else if (sectionName.startsWith('admin-')) {
+                loadAdminData();
+            }
+        }
+
+        // Bike Management
+        function renderBikes() {
+            const bikesGrid = document.getElementById('bikesGrid');
+            const bikeSelect = document.getElementById('bikeSelect');
+           
+            if (!bikesGrid) return;
+           
+            bikesGrid.innerHTML = '';
+           
+            appState.bikes.forEach(bike => {
+                const bikeCard = createBikeCard(bike);
+                bikesGrid.appendChild(bikeCard);
+            });
+           
+            // Update bike select dropdown
+            if (bikeSelect) {
+                bikeSelect.innerHTML = '<option value="">Choose a bike...</option>';
+                appState.bikes.filter(b => b.status === 'available').forEach(bike => {
+                    const option = document.createElement('option');
+                    option.value = bike.id;
+                    option.textContent = `${bike.name} - ₹${bike.price}/day`;
+                    bikeSelect.appendChild(option);
+                });
+            }
+        }
+
+        function createBikeCard(bike) {
+            const card = document.createElement('div');
+            card.className = 'bike-card bg-white rounded-xl shadow-lg overflow-hidden';
+            card.setAttribute('data-category', bike.category);
+           
+            card.innerHTML = `
+                <div class="relative">
+                    <img src="${bike.image}" alt="${bike.name}" class="w-full h-48 object-cover">
+                    <div class="absolute top-4 right-4 bg-${bike.status === 'available' ? 'green' : bike.status === 'rented' ? 'red' : 'yellow'}-500 text-white px-2 py-1 rounded-full text-xs font-semibold">
+                        ${bike.status.charAt(0).toUpperCase() + bike.status.slice(1)}
+                    </div>
+                </div>
+                <div class="p-6">
+                    <h3 class="text-xl font-bold text-gray-800 mb-2">${bike.name}</h3>
+                    <div class="flex items-center mb-2">
+                        <div class="flex text-yellow-400 mr-2">
+                            ${generateStars(bike.rating)}
+                        </div>
+                        <span class="text-sm text-gray-600">(${bike.rating}/5)</span>
+                    </div>
+                    <div class="flex justify-between items-center mb-4">
+                        <span class="price-highlight text-2xl font-bold">₹${bike.price}/day</span>
+                        <span class="text-sm text-gray-600">${bike.engine}</span>
+                    </div>
+                    <div class="space-y-2 text-sm text-gray-600 mb-4">
+                        <div><i class="fas fa-gas-pump mr-2"></i>${bike.mileage}</div>
+                        <div><i class="fas fa-map-marker-alt mr-2"></i>${bike.location}</div>
+                    </div>
+                    <button onclick="selectBike('${bike.id}')" ${bike.status !== 'available' ? 'disabled' : ''}
+                            class="w-full ${bike.status === 'available' ? 'bg-blue-600 hover:bg-blue-700' : 'bg-gray-400 cursor-not-allowed'} text-white py-2 rounded-lg transition-colors">
+                        <i class="fas fa-calendar mr-2"></i>${bike.status === 'available' ? 'Book Now' : 'Not Available'}
+                    </button>
+                </div>
+            `;
+           
+            return card;
+        }
+
+        function generateStars(rating) {
+            const fullStars = Math.floor(rating);
+            const hasHalfStar = rating % 1 !== 0;
+            let stars = '';
+           
+            for (let i = 0; i < fullStars; i++) {
+                stars += '<i class="fas fa-star"></i>';
+            }
+           
+            if (hasHalfStar) {
+                stars += '<i class="fas fa-star-half-alt"></i>';
+            }
+           
+            const emptyStars = 5 - Math.ceil(rating);
+            for (let i = 0; i < emptyStars; i++) {
+                stars += '<i class="far fa-star"></i>';
+            }
+           
+            return stars;
+        }
+
+        function filterBikes(category) {
+            const bikeCards = document.querySelectorAll('.bike-card');
+            const filterBtns = document.querySelectorAll('.filter-btn');
+           
+            // Update button styles
+            filterBtns.forEach(btn => {
+                btn.classList.remove('bg-blue-600', 'text-white');
+                btn.classList.add('bg-gray-200', 'text-gray-700');
+            });
+           
+            event.target.classList.remove('bg-gray-200', 'text-gray-700');
+            event.target.classList.add('bg-blue-600', 'text-white');
+           
+            // Filter bikes
+            bikeCards.forEach(card => {
+                if (category === 'all' || card.getAttribute('data-category') === category) {
+                    card.style.display = 'block';
+                } else {
+                    card.style.display = 'none';
+                }
+            });
+        }
+
+        function selectBike(bikeId) {
+            if (!appState.currentUser) {
+                showAuthModal('login');
+                return;
+            }
+           
+            const bike = appState.bikes.find(b => b.id === bikeId);
+            if (bike) {
+                const bikeSelect = document.getElementById('bikeSelect');
+                if (bikeSelect) {
+                    bikeSelect.value = bikeId;
+                    updateBookingCost();
+                }
+                showBookingModal();
+            }
+        }
+
+        // Booking Functions
+        function showBookingModal() {
+            if (!appState.currentUser) {
+                showAuthModal('login');
+                return;
+            }
+           
+            document.getElementById('bookingModal').classList.add('active');
+        }
+
+        function closeBookingModal() {
+            document.getElementById('bookingModal').classList.remove('active');
+        }
+
+        function updateBookingCost() {
+            const bikeSelect = document.getElementById('bikeSelect');
+            const durationSelect = document.getElementById('durationSelect');
+            const rentalCostEl = document.getElementById('rentalCost');
+            const totalAmountEl = document.getElementById('totalAmount');
+           
+            if (!bikeSelect || !durationSelect || !rentalCostEl || !totalAmountEl) return;
+           
+            const selectedBike = appState.bikes.find(b => b.id === bikeSelect.value);
+            if (!selectedBike) {
+                rentalCostEl.textContent = '₹0';
+                totalAmountEl.textContent = '₹500';
+                return;
+            }
+           
+            const duration = parseInt(durationSelect.value);
+            let multiplier = 1;
+           
+            if (duration <= 8) {
+                multiplier = duration / 24; // Hourly rate
+            } else if (duration === 24) {
+                multiplier = 1; // Daily rate
+            } else if (duration === 168) {
+                multiplier = 6; // Weekly rate (6 days equivalent)
+            }
+           
+            const rentalCost = Math.round(selectedBike.price * multiplier);
+            const securityDeposit = 500;
+            const totalAmount = rentalCost + securityDeposit;
+           
+            rentalCostEl.textContent = `₹${rentalCost}`;
+            totalAmountEl.textContent = `₹${totalAmount}`;
+        }
+
+        function confirmBooking() {
+            const bikeSelect = document.getElementById('bikeSelect');
+            const locationSelect = document.getElementById('locationSelect');
+            const startDate = document.getElementById('startDate');
+            const startTime = document.getElementById('startTime');
+            const durationSelect = document.getElementById('durationSelect');
+           
+            if (!bikeSelect.value || !locationSelect.value || !startDate.value || !startTime.value) {
+                showNotification('Please fill in all booking details', 'error');
+                return;
+            }
+           
+            const selectedBike = appState.bikes.find(b => b.id === bikeSelect.value);
+            const duration = parseInt(durationSelect.value);
+           
+            let multiplier = 1;
+            if (duration <= 8) {
+                multiplier = duration / 24;
+            } else if (duration === 24) {
+                multiplier = 1;
+            } else if (duration === 168) {
+                multiplier = 6;
+            }
+           
+            const rentalCost = Math.round(selectedBike.price * multiplier);
+            const totalAmount = rentalCost + 500;
+           
+            const booking = {
+                id: 'B' + (appState.bookings.length + 1).toString().padStart(3, '0'),
+                userId: appState.currentUser.id,
+                bikeId: selectedBike.id,
+                bikeName: selectedBike.name,
+                startDate: startDate.value,
+                startTime: startTime.value,
+                duration: duration,
+                location: locationSelect.value,
+                amount: totalAmount,
+                status: 'confirmed',
+                bookingTime: new Date()
+            };
+           
+            appState.bookings.push(booking);
+           
+            // Update bike status
+            selectedBike.status = 'rented';
+           
+            closeBookingModal();
+            showNotification('Booking confirmed successfully!', 'success');
+           
+            // Re-render bikes to update availability
+            renderBikes();
+        }
+
+        // User Functions
+        function loadUserBookings() {
+            if (!appState.currentUser) return;
+           
+            const userBookings = appState.bookings.filter(b => b.userId === appState.currentUser.id);
+            const activeBookings = userBookings.filter(b => b.status === 'active' || b.status === 'confirmed');
+            const pastBookings = userBookings.filter(b => b.status === 'completed');
+           
+            // Render active bookings
+            const activeBookingsEl = document.getElementById('activeBookings');
+            if (activeBookingsEl) {
+                if (activeBookings.length === 0) {
+                    activeBookingsEl.innerHTML = '<p class="text-gray-500">No active bookings</p>';
+                } else {
+                    activeBookingsEl.innerHTML = activeBookings.map(booking => `
+                        <div class="bg-white rounded-lg shadow-md p-6">
+                            <div class="flex justify-between items-center mb-4">
+                                <h4 class="text-lg font-bold">${booking.bikeName}</h4>
+                                <span class="px-3 py-1 bg-green-100 text-green-800 rounded-full text-sm font-semibold">
+                                    ${booking.status}
+                                </span>
+                            </div>
+                            <div class="grid grid-cols-2 gap-4 text-sm">
+                                <div>
+                                    <span class="text-gray-500">Date:</span>
+                                    <span class="font-medium ml-2">${booking.startDate}</span>
+                                </div>
+                                <div>
+                                    <span class="text-gray-500">Time:</span>
+                                    <span class="font-medium ml-2">${booking.startTime}</span>
+                                </div>
+                                <div>
+                                    <span class="text-gray-500">Duration:</span>
+                                    <span class="font-medium ml-2">${booking.duration}h</span>
+                                </div>
+                                <div>
+                                    <span class="text-gray-500">Amount:</span>
+                                    <span class="font-medium ml-2">₹${booking.amount}</span>
+                                </div>
+                            </div>
+                        </div>
+                    `).join('');
+                }
+            }
+           
+            // Render booking history
+            const bookingHistoryEl = document.getElementById('bookingHistory');
+            if (bookingHistoryEl) {
+                if (pastBookings.length === 0) {
+                    bookingHistoryEl.innerHTML = '<p class="text-gray-500">No past bookings</p>';
+                } else {
+                    bookingHistoryEl.innerHTML = pastBookings.map(booking => `
+                        <div class="bg-white rounded-lg shadow-md p-6">
+                            <div class="flex justify-between items-center mb-4">
+                                <h4 class="text-lg font-bold">${booking.bikeName}</h4>
+                                <span class="px-3 py-1 bg-gray-100 text-gray-800 rounded-full text-sm font-semibold">
+                                    ${booking.status}
+                                </span>
+                            </div>
+                            <div class="grid grid-cols-2 gap-4 text-sm">
+                                <div>
+                                    <span class="text-gray-500">Date:</span>
+                                    <span class="font-medium ml-2">${booking.startDate}</span>
+                                </div>
+                                <div>
+                                    <span class="text-gray-500">Amount:</span>
+                                    <span class="font-medium ml-2">₹${booking.amount}</span>
+                                </div>
+                            </div>
+                        </div>
+                    `).join('');
+                }
+            }
+        }
+
+        function updateProfile() {
+            const firstName = document.getElementById('profileFirstName').value;
+            const lastName = document.getElementById('profileLastName').value;
+            const email = document.getElementById('profileEmail').value;
+            const phone = document.getElementById('profilePhone').value;
+           
+            if (appState.currentUser) {
+                appState.currentUser.name = firstName + ' ' + lastName;
+                appState.currentUser.email = email;
+                appState.currentUser.phone = phone;
+               
+                showNotification('Profile updated successfully!', 'success');
+                updateNavigation();
+            }
+        }
+
+        // Admin Functions
+        function loadAdminData() {
+            if (!appState.isAdmin) return;
+           
+            loadFleetData();
+            loadBookingsData();
+            loadUsersData();
+            loadRecentActivity();
+           
+            // Initialize charts after a short delay to ensure DOM is ready
+            setTimeout(initializeCharts, 100);
+        }
+
+        function loadFleetData() {
+            const fleetTableBody = document.getElementById('fleetTableBody');
+            if (!fleetTableBody) return;
+           
+            fleetTableBody.innerHTML = appState.bikes.map(bike => `
+                <tr>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">${bike.id}</td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${bike.name}</td>
+                    <td class="px-6 py-4 whitespace-nowrap">
+                        <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${
+                            bike.status === 'available' ? 'bg-green-100 text-green-800' :
+                            bike.status === 'rented' ? 'bg-red-100 text-red-800' :
+                            'bg-yellow-100 text-yellow-800'
+                        }">
+                            ${bike.status.charAt(0).toUpperCase() + bike.status.slice(1)}
+                        </span>
+                    </td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${bike.location}</td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">85%</td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">2 min ago</td>
+                    <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                        <button class="text-blue-600 hover:text-blue-900 mr-3">Edit</button>
+                        <button class="text-red-600 hover:text-red-900">Remove</button>
+                    </td>
+                </tr>
+            `).join('');
+           
+            // Update fleet counters
+            const available = appState.bikes.filter(b => b.status === 'available').length;
+            const inUse = appState.bikes.filter(b => b.status === 'rented').length;
+            const maintenance = appState.bikes.filter(b => b.status === 'maintenance').length;
+            const outOfService = appState.bikes.filter(b => b.status === 'out-of-service').length;
+           
+            const availableBikesEl = document.getElementById('availableBikes');
+            const inUseBikesEl = document.getElementById('inUseBikes');
+            const maintenanceBikesEl = document.getElementById('maintenanceBikes');
+            const outOfServiceBikesEl = document.getElementById('outOfServiceBikes');
+           
+            if (availableBikesEl) availableBikesEl.textContent = available;
+            if (inUseBikesEl) inUseBikesEl.textContent = inUse;
+            if (maintenanceBikesEl) maintenanceBikesEl.textContent = maintenance;
+            if (outOfServiceBikesEl) outOfServiceBikesEl.textContent = outOfService;
+        }
+
+        function loadBookingsData() {
+            const bookingsTableBody = document.getElementById('bookingsTableBody');
+            if (!bookingsTableBody) return;
+           
+            bookingsTableBody.innerHTML = appState.bookings.map(booking => {
+                const user = appState.users.find(u => u.id === booking.userId);
+                return `
+                    <tr>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">${booking.id}</td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${user ? user.name : 'Unknown'}</td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${booking.bikeName}</td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${booking.startDate} ${booking.startTime}</td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${booking.duration}h</td>
+                        <td class="px-6 py-4 whitespace-nowrap">
+                            <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${
+                                booking.status === 'confirmed' ? 'bg-green-100 text-green-800' :
+                                booking.status === 'active' ? 'bg-blue-100 text-blue-800' :
+                                'bg-gray-100 text-gray-800'
+                            }">
+                                ${booking.status.charAt(0).toUpperCase() + booking.status.slice(1)}
+                            </span>
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">₹${booking.amount}</td>
+                        <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                            <button class="text-blue-600 hover:text-blue-900 mr-3">View</button>
+                            <button class="text-red-600 hover:text-red-900">Cancel</button>
+                        </td>
+                    </tr>
+                `;
+            }).join('');
+        }
+
+        function loadUsersData() {
+            const usersTableBody = document.getElementById('usersTableBody');
+            if (!usersTableBody) return;
+           
+            usersTableBody.innerHTML = appState.users.filter(u => u.role !== 'admin').map(user => {
+                const userBookings = appState.bookings.filter(b => b.userId === user.id);
+                return `
+                    <tr>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">${user.id}</td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${user.name}</td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${user.email}</td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${user.phone || 'N/A'}</td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${userBookings.length}</td>
+                        <td class="px-6 py-4 whitespace-nowrap">
+                            <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-green-100 text-green-800">
+                                Active
+                            </span>
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                            <button class="text-blue-600 hover:text-blue-900 mr-3">View</button>
+                            <button class="text-red-600 hover:text-red-900">Block</button>
+                        </td>
+                    </tr>
+                `;
+            }).join('');
+        }
+
+        function loadRecentActivity() {
+            const recentActivityEl = document.getElementById('recentActivity');
+            if (!recentActivityEl) return;
+           
+            const activities = [
+                { type: 'booking', message: 'New booking by Jane Smith for Royal Enfield Classic 350', time: '5 min ago' },
+                { type: 'return', message: 'Bike Honda CB Shine returned by Mike Johnson', time: '12 min ago' },
+                { type: 'maintenance', message: 'Bajaj Pulsar 150 scheduled for maintenance', time: '1 hour ago' },
+                { type: 'signup', message: 'New user registration: Alex Wilson', time: '2 hours ago' }
+            ];
+           
+            recentActivityEl.innerHTML = activities.map(activity => `
+                <div class="flex items-center space-x-3 p-3 bg-gray-50 rounded-lg">
+                    <div class="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center">
+                        <i class="fas fa-${activity.type === 'booking' ? 'calendar' : activity.type === 'return' ? 'check' : activity.type === 'maintenance' ? 'wrench' : 'user'} text-blue-600 text-sm"></i>
+                    </div>
+                    <div class="flex-1">
+                        <p class="text-sm text-gray-800">${activity.message}</p>
+                        <p class="text-xs text-gray-500">${activity.time}</p>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        function initializeCharts() {
+            // Revenue Chart
+            const revenueCtx = document.getElementById('revenueChart');
+            if (revenueCtx) {
+                new Chart(revenueCtx, {
+                    type: 'line',
+                    data: {
+                        labels: ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun'],
+                        datasets: [{
+                            label: 'Revenue (₹)',
+                            data: [45000, 52000, 48000, 61000, 55000, 67000],
+                            borderColor: '#10B981',
+                            backgroundColor: 'rgba(16, 185, 129, 0.1)',
+                            tension: 0.4
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: {
+                            legend: {
+                                display: false
+                            }
+                        },
+                        scales: {
+                            y: {
+                                beginAtZero: true
+                            }
+                        }
+                    }
+                });
+            }
+
+            // Utilization Chart
+            const utilizationCtx = document.getElementById('utilizationChart');
+            if (utilizationCtx) {
+                new Chart(utilizationCtx, {
+                    type: 'doughnut',
+                    data: {
+                        labels: ['Available', 'In Use', 'Maintenance'],
+                        datasets: [{
+                            data: [42, 23, 8],
+                            backgroundColor: ['#10B981', '#3B82F6', '#F59E0B']
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false
+                    }
+                });
+            }
+        }
+
+        // Utility Functions
+        function updateTime() {
+            const now = new Date();
+            const timeStr = now.toLocaleString('en-IN', {
+                year: 'numeric',
+                month: 'short',
+                day: 'numeric',
+                hour: '2-digit',
+                minute: '2-digit'
+            });
+            const timeEl = document.getElementById('currentTime');
+            if (timeEl) timeEl.textContent = timeStr;
+        }
+
+        function showNotification(message, type = 'info') {
+            const container = document.getElementById('notificationContainer');
+            const notification = document.createElement('div');
+            const colors = {
+                success: 'bg-green-500',
+                error: 'bg-red-500',
+                warning: 'bg-yellow-500',
+                info: 'bg-blue-500'
+            };
+           
+            notification.className = `notification ${colors[type]} text-white px-6 py-3 rounded-lg shadow-lg mb-2 max-w-sm`;
+            notification.innerHTML = `
+                <div class="flex items-center justify-between">
+                    <span class="text-sm font-medium">${message}</span>
+                    <button class="ml-4 text-white hover:text-gray-200" onclick="this.parentElement.parentElement.remove()">
+                        <i class="fas fa-times"></i>
+                    </button>
+                </div>
+            `;
+           
+            container.appendChild(notification);
+           
+            setTimeout(() => {
+                if (notification.parentNode) {
+                    notification.remove();
+                }
+            }, 5000);
+        }
+
+        // Mock data for demonstration
+        setTimeout(() => {
+            // Add some sample bookings
+            if (appState.bookings.length === 0) {
+                appState.bookings.push(
+                    {
+                        id: 'B001',
+                        userId: 'U002',
+                        bikeId: 'RE001',
+                        bikeName: 'Royal Enfield Classic 350',
+                        startDate: '2024-01-20',
+                        startTime: '10:00',
+                        duration: 8,
+                        location: 'Connaught Place, Delhi',
+                        amount: 1100,
+                        status: 'confirmed',
+                        bookingTime: new Date()
+                    },
+                    {
+                        id: 'B002',
+                        userId: 'U003',
+                        bikeId: 'HC001',
+                        bikeName: 'Honda CB Shine',
+                        startDate: '2024-01-19',
+                        startTime: '14:00',
+                        duration: 4,
+                        location: 'Bandra, Mumbai',
+                        amount: 700,
+                        status: 'active',
+                        bookingTime: new Date(Date.now() - 86400000)
+                    }
+                );
+            }
+        }, 1000);
+    </script>
+</body>
+</html>
